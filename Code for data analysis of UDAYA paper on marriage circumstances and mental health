@@ -1,0 +1,422 @@
+# Master's thesis Jasper Synowski: Script for data analysis
+
+############ installing packages ################
+
+# installing packages
+install.packages("tableone")
+install.packages("VGAM", dependencies = T)
+install.packages("table1")
+install.packages("zoo")
+install.packages("Biograph")
+install.packages("MASS")
+install.packages("brant")
+
+############ first steps ######################
+
+# set working directory
+setwd("C:/Users/User/Desktop/Studium/Masterstudium/MScPH Berlin/S5_MA/Data/Raw data")
+getwd()
+# import data Bihar
+load("UDAYA Bihar IND 2016 version1.RData")
+B_all <- table
+rm(table)
+
+# import data Uttar Pradesh (UP)
+UP_all <- load("UDAYA UP IND 2016 version2.RData")
+UP_all <- table
+rm(table)
+
+#merge UP and Bihar data
+BUP_all <- as.data.frame(rbind(B_all,UP_all))
+# drop unmarried girls and boys
+# also drop those who got married, but have not performed the gauna
+table(BUP_all$gg102)
+BUP_mar <- BUP_all[BUP_all$gg102 ==1,]
+summary(BUP_mar$hsegment)
+
+# also drop unmarried boys and girls in the separate Bihar and UP data sets
+UP_mar <- UP_all[UP_all$gg102 ==1,]
+B_mar <- B_all[B_all$gg102 ==1,]
+
+# check: only girls in the data set? Yes, because sex of all adolescents in the 
+# subset is coded as "2" ("female")
+# note: automatically applies also to B_mar and UP_mar
+summary(BUP_mar$sex)
+
+###### Table 1 #########
+library(tableone)
+library(table1)
+
+# socioeconomic background of the sample
+
+# recode some variables for better representation
+
+# respondent's education
+BUP_mar$edu2cat <- 1
+BUP_mar$edu2cat[BUP_mar$edu6cat %in% c(2,3,4,5)] <- 2
+# accounting for potential NAs and NAs which are coded as high numbers (e.g. 999)
+BUP_mar$edu2cat[is.na(BUP_mar$edu6cat) | BUP_mar$edu6cat > 10] <- NA
+# respondent's religion
+BUP_mar$rel2cat <- 2
+BUP_mar$rel2cat[BUP_mar$rel %in% c(2,3)] <- 1
+BUP_mar$rel2cat[is.na(BUP_mar$rel) | BUP_mar$rel > 10] <- NA
+# education of household head
+BUP_mar$edu_head3cat <- 1
+BUP_mar$edu_head3cat[BUP_mar$edu_head %in% c(1,2,3,4)] <- 2
+BUP_mar$edu_head3cat[is.na(BUP_mar$edu_head) | BUP_mar$edu_head > 10] <- NA
+summary(BUP_mar$edu_head3cat)
+# caste 
+BUP_mar$caste_hh2cat <- 2
+BUP_mar$caste_hh2cat[BUP_mar$caste_hh %in% c(1,2,4, 6)] <- 1
+BUP_mar$caste_hh2cat[is.na(BUP_mar$caste_hh) | BUP_mar$caste_hh > 10] <- NA
+table(BUP_mar$caste_hh2cat)
+
+# create a list of variables which are to be displayed in Table 1
+listvar <- c("ageA","wiscorei","hurban_rural","edu2cat","rel2cat","caste_hh2cat","edu_head3cat")
+
+# create list of categorical variables to be displayed in Table 1
+listvar_cat <- c("hurban_rural","edu2cat","rel2cat","caste_hh2cat","edu_head3cat")
+table1 <- CreateTableOne(vars = listvar,data = BUP_mar, factorVars = listvar_cat, test= FALSE)
+table1
+table2 <- CreateTableOne(vars = listvar, strata= c("hstate"), data = BUP_mar, factorVars = listvar_cat, test= FALSE)
+table2
+
+print(table1, quote = TRUE, noSpaces = TRUE)
+print(table2, quote = T, noSpaces = T)
+
+############## coding and description of independent variables ###############
+
+# dowry-related harassment
+BUP_mar$DRH <- 0
+BUP_mar$DRH[BUP_mar$gg917 == 1 | BUP_mar$gg918 ==1] <- 1
+BUP_mar$DRH[is.na(BUP_mar$gg917) & is.na(BUP_mar$gg918)] <- NA
+# descriptive statistics
+table(BUP_mar$DRH)
+table(BUP_mar$DRH, BUP_mar$PHQ9_tot_cat)
+drh_table1 <- table(BUP_mar$DRH)
+prop.table(drh_table)
+# by state
+drh_table2 <- table(BUP_mar$DRH, BUP_mar$hstate)
+prop.table(drh_table2, 2)
+#convert to factor variable
+BUP_mar$DRH <- as.factor(BUP_mar$DRH)
+
+# age at marriage: already available as variable "ageAtMar"
+table(BUP_mar$AgeAtMar)
+summary(BUP_mar$AgeAtMar)
+# coding of a new variable as factor to make comparisons easier
+BUP_mar$AgeAtMar_cat <- 3
+BUP_mar$AgeAtMar_cat[BUP_mar$AgeAtMar <16] <- 1
+BUP_mar$AgeAtMar_cat[BUP_mar$AgeAtMar >=16 & BUP_mar$AgeAtMar <18] <- 2
+BUP_mar$AgeAtMar_cat <- as.factor(BUP_mar$AgeAtMar_cat)
+# descriptive statistics
+AgeAtMar <- table(BUP_mar$AgeAtMar_cat, BUP_mar$hstate)
+prop.table(AgeAtMar, 2)
+summary(BUP_mar$AgeAtMar)
+sd(BUP_mar$AgeAtMar)
+# by state
+summary(BUP_mar$AgeAtMar[BUP_mar$hstate ==9])
+sd((BUP_mar$AgeAtMar[BUP_mar$hstate ==9]))
+summary(BUP_mar$AgeAtMar[BUP_mar$hstate ==10])
+sd((BUP_mar$AgeAtMar[BUP_mar$hstate ==10]))
+
+#visualization
+hist(BUP_mar$AgeAtMar, main = "Age at Marriage", xlab= "Age at Marriage", ylab = "Frequency")
+
+# involvement in the marriage process
+# creating a new variable as a value of 1, which defines low to moderate involvment in the 
+# marriage process 
+BUP_mar$inv <- 1
+# low involvement coded as 0
+BUP_mar$inv[BUP_mar$gg905== 2 & BUP_mar$gg906 == 2 & BUP_mar$gg907 == 2] <- 0
+# moderate involvement coded as 2 
+BUP_mar$inv[BUP_mar$gg905== 2 & BUP_mar$gg906 == 1 & BUP_mar$gg907 == 1] <- 2
+# high involvement coded as 3
+BUP_mar$inv[BUP_mar$gg905 == 1] <- 3
+# Consistent NA coded as NA
+BUP_mar$inv[is.na(BUP_mar$gg905) & is.na(BUP_mar$gg906) & is.na(BUP_mar$gg907)] <- NA
+# descriptive statistics
+tbl_inv_1 <- table(BUP_mar$inv)
+tbl_inv_1
+prop.table(tbl_inv_1)
+tbl_inv_2 <- table(BUP_mar$inv, BUP_mar$hstate)
+prop.table(tbl_inv_2,2)
+# convert to factor variable
+BUP_mar$inv <- as.factor(BUP_mar$inv)
+
+# payment of dowry by state
+table(BUP_mar$gg915)
+prop.table(table(BUP_mar$gg915))
+table(BUP_mar$gg915, BUP_mar$hstate)
+prop.table(table(BUP_mar$gg915, BUP_mar$hstate), 2)
+# payment of dowry by area
+table(BUP_mar$gg915, BUP_mar$hurban_rural)
+
+############### coding of dependent variables ##################
+
+# code PHQ-9 score (total score) as a new variable
+BUP_mar$PHQ9_tot <- BUP_mar$gg627a + BUP_mar$gg627b + BUP_mar$gg627c + BUP_mar$gg627d + BUP_mar$gg627e + BUP_mar$gg627f + BUP_mar$gg627g + BUP_mar$gg627h + BUP_mar$gg627i
+# recode so that higher scores mean more severe depression (subtract 9 items*4 and then multiply with -1)
+BUP_mar$PHQ9_tot <- (BUP_mar$PHQ9_tot - 36)*-1
+# check
+summary(BUP_mar$PHQ9_tot)
+# code additional ordinal variable for different severities of depression:
+# categories: no depression; mild; moderate; moderately severe to severe
+BUP_mar$PHQ9_tot_cat <- 1
+BUP_mar$PHQ9_tot_cat[BUP_mar$PHQ9_tot >= 5 & BUP_mar$PHQ9_tot <10] <- 2
+BUP_mar$PHQ9_tot_cat[BUP_mar$PHQ9_tot >=10 & BUP_mar$PHQ9_tot <15] <- 3
+BUP_mar$PHQ9_tot_cat[BUP_mar$PHQ9_tot >=15 & BUP_mar$PHQ9_tot <20] <- 4
+BUP_mar$PHQ9_tot_cat[BUP_mar$PHQ9_tot >=20 & BUP_mar$PHQ9_tot <40] <- 5
+table(BUP_mar$PHQ9_tot_cat, BUP_mar$hstate)
+
+# convert into factor variable
+BUP_mar$PHQ9_tot_cat <- factor(BUP_mar$PHQ9_tot_cat, ordered = TRUE, levels = c("1", "2", "3", "4", "5"))
+
+# code suicidal ideation
+BUP_mar$SI <- 0
+BUP_mar$SI[BUP_mar$gg628 == 1 | BUP_mar$gg629 == 1 | BUP_mar$gg630 %in% c(1:10)] <- 1
+BUP_mar$SI[BUP_mar$gg628 == 8 & is.na(BUP_mar$gg629) | BUP_mar$gg629 ==8 & is.na(BUP_mar$gg630)] <- NA
+table(BUP_mar$SI, BUP_mar$hstate)
+table(is.na(BUP_mar$SI))
+
+############## descriptive outcome analysis for different predictors and categorized by state #############
+
+# mental health outcomes given different predictors
+# create additional variable representing whether a participant is at least mildly depressed (PHQ-9 >=5)
+BUP_mar$dep <- 0 
+BUP_mar$dep[BUP_mar$PHQ9_tot > 4] <- 1
+BUP_mar$dep[is.na(BUP_mar$PHQ9_tot)] <- NA
+# define outcomes: depression and SI
+BUP_mar$PHQ9_tot_n <- as.numeric(BUP_mar$PHQ9_tot)
+listvar_2 <- c("PHQ9_tot_n","dep", "SI")
+catvar_2 <- c("dep", "SI")
+
+# look at outcomes by region and overall
+MH_means_region <- CreateTableOne(vars = listvar_2, strata = c("hstate"), data = BUP_mar,factorVars = catvar_2) 
+MH_means_region
+MH_means_overall <- CreateTableOne(vars = listvar_2, data = BUP_mar,factorVars = catvar_2) 
+MH_means_overall
+
+# check differences with regard to whether DRH was present or not
+MH_means_DRH <- CreateTableOne(vars = listvar_2, strata = c("DRH"), data = BUP_mar,factorVars = catvar_2) 
+MH_means_DRH
+
+# check differences with regard to involvement in the marriage process
+MH_means_inv <- CreateTableOne(vars = listvar_2, strata = c("inv"), data = BUP_mar,factorVars = catvar_2) 
+MH_means_inv
+
+# check differences with regard to age at marriage
+MH_means_AgeM <- CreateTableOne(vars = listvar_2, strata = c("AgeAtMar_cat"), data = BUP_mar,factorVars = catvar_2) 
+MH_means_AgeM
+
+
+############# coding of relevant confounders #################
+
+# code marriage date as a new variable
+library(zoo)
+BUP_mar$dat_mar <- NA
+BUP_mar$dat_mar <- as.yearmon(paste(BUP_mar$YrOfMar,BUP_mar$MnOfMar,sep=" "), "%Y %m")
+BUP_mar$dat_mar <- as.Date(BUP_mar$dat_mar)
+BUP_mar$dat_mar
+
+library(Biograph)
+# code date of the interview (CMC-coded) as a new variable
+BUP_mar$dat_int <- cmc_as_Date(BUP_mar$cmcint)
+tail(BUP_mar$dat_int)
+
+# duration of marriage
+BUP_mar$dur_mar <- as.Date(as.character(BUP_mar$dat_int)) - as.Date(as.character(BUP_mar$dat_mar))
+# convert into numeric format
+BUP_mar$dur_mar_n <- as.numeric(BUP_mar$dur_mar)
+
+# interspousal violence
+# create new variable indicating physical violence
+BUP_mar$phviol <- 0
+BUP_mar$phviol[BUP_mar$gg923a ==1 | BUP_mar$gg923b ==1 | BUP_mar$gg923c ==1 | BUP_mar$gg923d ==1 | BUP_mar$gg923e ==1 | BUP_mar$gg923f ==1 | BUP_mar$gg923g ==1] <- 1
+BUP_mar$phviol[is.na(BUP_mar$gg923a & BUP_mar$gg923b & BUP_mar$gg923c & BUP_mar$gg923d & BUP_mar$gg923e & BUP_mar$gg923f & BUP_mar$gg923g)] <- NA
+# create new variable indicating emotional violence
+BUP_mar$emviol <- 0
+BUP_mar$emviol[BUP_mar$gg922 ==1] <- 1
+BUP_mar$emviol[is.na(BUP_mar$gg922) | BUP_mar$gg922 %in% c(8,9)] <- NA
+
+############# bivariate regression modelling #######################
+# load package for ordinal logreg MASS
+library(MASS)
+# and package Brant to check for proportional odds assumption
+library(brant)
+
+######## PHQ9 categories and DRH #######
+
+# regression model used: ordered logistic regression
+bv_PHQ_DRH_T <- polr(PHQ9_tot_cat ~ DRH, data= BUP_mar, Hess = TRUE)
+summary(bv_PHQ_DRH_T)
+# brant test to check Proportional odds assumption (POA) - if significant, POA likely violated
+brant(bv_PHQ_DRH_T)
+exp(coef(bv_PHQ_DRH_T))
+exp(confint(bv_PHQ_DRH_T))
+# add p-values
+ctable <- coef(summary(bv_PHQ_DRH_T))
+p <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+ctable <- cbind(ctable, "p value" = p)
+ctable
+
+####### suicidal ideation and DRH #########
+# simple binary logreg
+bv_SI_DRH <- glm(SI ~ DRH, binomial(link = "logit"),data = BUP_mar)
+summary(bv_SI_DRH)
+exp(coef(bv_SI_DRH))
+exp(confint(bv_SI_DRH))
+
+####### PHQ9 categories and age at marriage #######
+
+# AgeAtMar used as ordinal variable
+bv_PHQ_ageM <- polr(PHQ9_tot_cat ~ AgeAtMar_cat, data= BUP_mar, Hess = TRUE)
+summary(bv_PHQ_ageM)
+brant(bv_PHQ_ageM)
+# PO assumption apparently not violated
+exp(coef(bv_PHQ_ageM))
+exp(confint(bv_PHQ_ageM))
+# add p-values
+ctable <- coef(summary(bv_PHQ_ageM))
+p <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+ctable <- cbind(ctable, "p value" = p)
+ctable
+
+###### suicidal ideation and age at marriage ######
+
+bv_SI_ageM <- glm(SI ~ AgeAtMar_cat, binomial(link = "logit"),data = BUP_mar)
+summary(bv_SI_ageM)
+exp(coef(bv_SI_ageM))
+exp(confint(bv_SI_ageM))
+
+####### PHQ9 categories and involvement in marriage ###########
+
+# regression model used: ordered logistic regression
+bv_PHQ_inv_T <- polr(PHQ9_tot_cat ~ inv, data= BUP_mar, Hess = TRUE)
+summary(bv_PHQ_inv_T)
+brant(bv_PHQ_inv_T)
+# POA apparently not violated
+exp(coef(bv_PHQ_inv_T))
+exp(confint(bv_PHQ_inv_T))
+# add p-values
+ctable <- coef(summary(bv_PHQ_inv_T))
+p <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+ctable <- cbind(ctable, "p value" = p)
+ctable
+
+######## suicidal ideation/behaviour and involvement in marriage process ########
+bv_SI_inv <- glm(SI ~ inv, binomial(link = "logit"),data = BUP_mar)
+summary(bv_SI_inv)
+exp(coef(bv_SI_inv))
+exp(confint(bv_SI_inv))
+
+##### Multivariable regression analysis #######
+#### DRH and depression
+# Minimal sufficient adjustment set: Aggressiveness of husband, Duration of marriage, SES/parents, SES_girl_and husband, SES_husband, rural area, age
+# Only SES girl+husband measured, other SES not assessed (wiscorei) 
+mv_PHQ_DRH <- polr(PHQ9_tot_cat ~ DRH + ageA + dur_mar_n + hurban_rural + edu6cat + phviol + wiscorei, data= BUP_mar, Hess = TRUE)
+summary(mv_PHQ_DRH)
+brant(mv_PHQ_DRH)
+# POA apparently not violated
+exp(coef(mv_PHQ_DRH))
+exp(confint(mv_PHQ_DRH))
+# add p-values
+ctable <- coef(summary(mv_PHQ_DRH))
+p <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+ctable <- cbind(ctable, "p value" = p)
+ctable
+
+### Marriage age and depression
+# Minimal sufficient adjustment set:Age at interview, SES Parents, SES_husband, girl's_edu
+# SES parents not measured, SES of new household as proxy again
+mv_PHQ_age <- polr(PHQ9_tot_cat ~ AgeAtMar_cat + ageA + edu6cat + wiscorei, data= BUP_mar, Hess = TRUE)
+summary(mv_PHQ_age)
+brant(mv_PHQ_age)
+# POA apparently not violated
+exp(coef(mv_PHQ_age))
+exp(confint(mv_PHQ_age))
+# add p-values
+ctable <- coef(summary(mv_PHQ_age))
+p <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+ctable <- cbind(ctable, "p value" = p)
+ctable
+
+### involvement in the marriage process and depression 
+# Minimal sufficient adjustment set: History of depression, Norms around marriage involvement, SES_girl and husband, SES_parents, girl_education
+# SES parents not measured -> wiscorei used; history of depression not assessed, and norms around marriage approx. by religion
+mv_PHQ_inv <- polr(PHQ9_tot_cat ~ inv + edu6cat + wiscorei + rel, data= BUP_mar, Hess = TRUE)
+summary(mv_PHQ_inv)
+brant(mv_PHQ_inv)
+# POA apparently not violated
+exp(coef(mv_PHQ_inv))
+exp(confint(mv_PHQ_inv))
+# add p-values
+ctable <- coef(summary(mv_PHQ_inv))
+p <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+ctable <- cbind(ctable, "p value" = p)
+ctable
+
+### DRH and SI 
+# Minimal sufficient adjustment set: Aggressiveness of husband, Duration of marriage, SES/parents, SES_girl_and husband, SES_husband, rural area
+# SES parents not measured, proxy used (wiscorei)
+mv_SI_DRH <- glm(SI ~ DRH + dur_mar + hurban_rural + wiscorei + phviol, binomial(link = "logit"),data = BUP_mar)
+summary(mv_SI_DRH)
+exp(coef(mv_SI_DRH))
+exp(confint(mv_SI_DRH))
+
+### Marriage age and SI
+# Minimal sufficient adjustment set: Previous suicidal attempts, SES Parents, SES_girl and husband, SES_husband, girl's_edu, age
+# SES parents, SES husband and previous suicidal attempts unmeasured
+mv_SI_age <- glm(SI ~ AgeAtMar_cat  + ageA + edu6cat + wiscorei, binomial(link = "logit"),data = BUP_mar)
+summary(mv_SI_age)
+exp(coef(mv_SI_age))
+exp(confint(mv_SI_age))
+
+### involvement and SI
+# Minimal sufficient adjustment set: History of depression, Norms around marriage involvement, SES_girl and husband, SES_parents, girl_education
+# Marriage norms approx. through religion, history of dep or anxiety unassessed, SES approximated (wiscorei)
+mv_SI_inv <- glm(SI ~ inv  + wiscorei + rel, binomial(link = "logit"),data = BUP_mar)
+summary(mv_SI_inv)
+exp(coef(mv_SI_inv))
+exp(confint(mv_SI_inv))
+
+# Sensitivity analysis 
+# regarding inclusion of phviol/emviol for link between DRH and depression/SI
+# (1)
+# also including emotional violence
+mv_PHQ_DRH2 <- polr(PHQ9_tot_cat ~ DRH + ageA + dur_mar_n + hurban_rural + edu6cat + phviol +emviol + wiscorei, data= BUP_mar, Hess = TRUE)
+summary(mv_PHQ_DRH2)
+brant(mv_PHQ_DRH2)
+# POA apparently not violated
+exp(coef(mv_PHQ_DRH2))
+exp(confint(mv_PHQ_DRH2))
+# (2) and not including emviol and neither phviol
+mv_PHQ_DRH3 <- polr(PHQ9_tot_cat ~ DRH + ageA + dur_mar_n + hurban_rural + edu6cat + wiscorei, data= BUP_mar, Hess = TRUE)
+summary(mv_PHQ_DRH3)
+brant(mv_PHQ_DRH3)
+# POA apparently not violated
+exp(coef(mv_PHQ_DRH3))
+exp(confint(mv_PHQ_DRH3))
+# DO THE SAME FOR SI
+
+# (3) influence of state
+# does state have an influence on effect of involvement?
+# using variable hstate: 9= UP,10= Bihar
+# depression
+
+# suicidal ideation
+mv_SI_inv_B <- glm(SI ~ inv + wiscorei, binomial(link = "logit"),data = BUP_mar)
+summary(mv_SI_inv_B)
+exp(coef(mv_SI_inv_B))
+exp(confint(mv_SI_inv_B))
+
+# does state have an influence on effect of DRH
+# using variable hstate: 9= UP,10= Bihar
+# depression
+
+
+# (4) effect of religion
+mv_SI_DRH_EM <- glm(SI ~ DRH + ageA + dur_mar + hurban_rural + wiscorei + phviol + rel2cat, binomial(link = "logit"),data = BUP_mar)
+summary(mv_SI_DRH_EM)
+exp(coef(mv_SI_DRH_EM))
+exp(confint(mv_SI_DRH_EM))
