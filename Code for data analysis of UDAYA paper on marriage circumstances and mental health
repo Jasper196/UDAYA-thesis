@@ -312,9 +312,9 @@ exp(confint(bv_SI_inv))
 
 ##### Multivariable regression analysis #######
 #### DRH and depression
-# Minimal sufficient adjustment set: Aggressiveness of husband, Duration of marriage, SES/parents, SES_girl_and husband, SES_husband, rural area, age
-# Only SES girl+husband measured, other SES not assessed (wiscorei) 
-mv_PHQ_DRH <- polr(PHQ9_tot_cat ~ DRH + ageA + dur_mar_n + hurban_rural + edu6cat + phviol + wiscorei, data= BUP_mar, Hess = TRUE)
+# Minimal sufficient adjustment set: Aggressiveness of husband, Aggressiveness of in-laws, Duration of marriage,age, SES/parents, SES_girl_and husband, SES_husband, rural area
+# Only SES girl+husband measured, other SES not assessed (wiscorei); aggressiveness of in-laws not assessed
+mv_PHQ_DRH <- polr(PHQ9_tot_cat ~ DRH + dur_mar_n + edu6cat + ageA + hurban_rural + phviol + wiscorei, data= BUP_mar, Hess = TRUE)
 summary(mv_PHQ_DRH)
 brant(mv_PHQ_DRH)
 # POA apparently not violated
@@ -329,7 +329,7 @@ ctable
 ### Marriage age and depression
 # Minimal sufficient adjustment set:Age at interview, SES Parents, SES_husband, girl's_edu
 # SES parents not measured, SES of new household as proxy again
-mv_PHQ_age <- polr(PHQ9_tot_cat ~ AgeAtMar_cat + ageA + edu6cat + wiscorei, data= BUP_mar, Hess = TRUE)
+mv_PHQ_age <- polr(PHQ9_tot_cat ~ AgeAtMar_cat + ageA + edu6cat + wiscorei +hurban_rural, data= BUP_mar, Hess = TRUE)
 summary(mv_PHQ_age)
 brant(mv_PHQ_age)
 # POA apparently not violated
@@ -341,10 +341,10 @@ p <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
 ctable <- cbind(ctable, "p value" = p)
 ctable
 
-### involvement in the marriage process and depression 
-# Minimal sufficient adjustment set: History of depression, Norms around marriage involvement, SES_girl and husband, SES_parents, girl_education
+### involvement in partner selection and depression 
+# Minimal sufficient adjustment set: Age, History of depression, SES_girl and husband, SES_parents, girl_education, religion
 # SES parents not measured -> wiscorei used; history of depression not assessed, and norms around marriage approx. by religion
-mv_PHQ_inv <- polr(PHQ9_tot_cat ~ inv + edu6cat + wiscorei + rel, data= BUP_mar, Hess = TRUE)
+mv_PHQ_inv <- polr(PHQ9_tot_cat ~ inv + ageA +edu6cat + wiscorei + rel, data= BUP_mar, Hess = TRUE)
 summary(mv_PHQ_inv)
 brant(mv_PHQ_inv)
 # POA apparently not violated
@@ -357,31 +357,30 @@ ctable <- cbind(ctable, "p value" = p)
 ctable
 
 ### DRH and SI 
-# Minimal sufficient adjustment set: Aggressiveness of husband, Duration of marriage, SES/parents, SES_girl_and husband, SES_husband, rural area
-# SES parents not measured, proxy used (wiscorei)
-mv_SI_DRH <- glm(SI ~ DRH + dur_mar + hurban_rural + wiscorei + phviol, binomial(link = "logit"),data = BUP_mar)
+# Minimal sufficient adjustment set: Aggressiveness of husband, education, Duration of marriage, SES/parents, SES_girl_and husband, SES_husband, rural area, aggressiveness of in-laws
+# SES parents not measured, proxy used (wiscorei); aggressiveness of in-laws not measured, husband smoke/drink not measured 
+mv_SI_DRH <- glm(SI ~ DRH + dur_mar + hurban_rural + edu6cat + wiscorei + phviol, binomial(link = "logit"),data = BUP_mar)
 summary(mv_SI_DRH)
 exp(coef(mv_SI_DRH))
 exp(confint(mv_SI_DRH))
 
 ### Marriage age and SI
-# Minimal sufficient adjustment set: Previous suicidal attempts, SES Parents, SES_girl and husband, SES_husband, girl's_edu, age
-# SES parents, SES husband and previous suicidal attempts unmeasured
+# Minimal sufficient adjustment set: Rural area, SES Parents, SES_girl and husband, SES_husband, girl's_edu, age
 mv_SI_age <- glm(SI ~ AgeAtMar_cat  + ageA + edu6cat + wiscorei, binomial(link = "logit"),data = BUP_mar)
 summary(mv_SI_age)
 exp(coef(mv_SI_age))
 exp(confint(mv_SI_age))
 
 ### involvement and SI
-# Minimal sufficient adjustment set: History of depression, Norms around marriage involvement, SES_girl and husband, SES_parents, girl_education
-# Marriage norms approx. through religion, history of dep or anxiety unassessed, SES approximated (wiscorei)
-mv_SI_inv <- glm(SI ~ inv  + wiscorei + rel, binomial(link = "logit"),data = BUP_mar)
+# Minimal sufficient adjustment set: History of depression, previous suicidal attempts, SES_girl and husband, SES_parents, girl_education
+mv_SI_inv <- glm(SI ~ inv  + wiscorei + rel + edu6cat + AgeAtMar_cat +ageA, binomial(link = "logit"),data = BUP_mar)
 summary(mv_SI_inv)
 exp(coef(mv_SI_inv))
 exp(confint(mv_SI_inv))
 
 # Sensitivity analysis 
 # regarding inclusion of phviol/emviol for link between DRH and depression/SI
+# a) depression 
 # (1)
 # also including emotional violence
 mv_PHQ_DRH2 <- polr(PHQ9_tot_cat ~ DRH + ageA + dur_mar_n + hurban_rural + edu6cat + phviol +emviol + wiscorei, data= BUP_mar, Hess = TRUE)
@@ -397,26 +396,15 @@ brant(mv_PHQ_DRH3)
 # POA apparently not violated
 exp(coef(mv_PHQ_DRH3))
 exp(confint(mv_PHQ_DRH3))
-# DO THE SAME FOR SI
-
-# (3) influence of state
-# does state have an influence on effect of involvement?
-# using variable hstate: 9= UP,10= Bihar
-# depression
-
-# suicidal ideation
-mv_SI_inv_B <- glm(SI ~ inv + wiscorei, binomial(link = "logit"),data = BUP_mar)
-summary(mv_SI_inv_B)
-exp(coef(mv_SI_inv_B))
-exp(confint(mv_SI_inv_B))
-
-# does state have an influence on effect of DRH
-# using variable hstate: 9= UP,10= Bihar
-# depression
-
-
-# (4) effect of religion
-mv_SI_DRH_EM <- glm(SI ~ DRH + ageA + dur_mar + hurban_rural + wiscorei + phviol + rel2cat, binomial(link = "logit"),data = BUP_mar)
-summary(mv_SI_DRH_EM)
-exp(coef(mv_SI_DRH_EM))
-exp(confint(mv_SI_DRH_EM))
+# b) SI
+# (1)
+# also including emotional violence
+mv_SI_DRH2 <- glm(SI ~ DRH + dur_mar + hurban_rural + edu6cat + wiscorei + phviol + emviol, binomial(link = "logit"),data = BUP_mar)
+summary(mv_SI_DRH2)
+exp(coef(mv_SI_DRH2))
+exp(confint(mv_SI_DRH2))
+# (2) and not including emviol and neither phviol
+mv_SI_DRH3 <- glm(SI ~ DRH + dur_mar + hurban_rural + edu6cat + wiscorei, binomial(link = "logit"),data = BUP_mar)
+summary(mv_SI_DRH3)
+exp(coef(mv_SI_DRH3))
+exp(confint(mv_SI_DRH3))
